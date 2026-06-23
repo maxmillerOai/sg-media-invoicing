@@ -34,6 +34,60 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :desktopApp:packageDmg --no-daemon --no-configuration-cache --stacktrace
 
+      - name: Smoke test macOS app launch
+        shell: bash
+        run: |
+          echo "Looking for .app bundle..."
+
+          APP_PATH=$(find desktopApp/build/compose/binaries/main -name "*.app" -type d | head -n 1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ No .app bundle found"
+            find desktopApp/build/compose/binaries/main -maxdepth 5 -type d || true
+            exit 1
+          fi
+
+          echo "✅ Found app: $APP_PATH"
+
+          if [ ! -d "$APP_PATH/Contents/MacOS" ]; then
+            echo "❌ Contents/MacOS folder not found inside app"
+            exit 1
+          fi
+
+          EXECUTABLE=$(find "$APP_PATH/Contents/MacOS" -maxdepth 1 -type f -perm +111 | head -n 1)
+
+          if [ -z "$EXECUTABLE" ]; then
+            echo "Trying alternative executable search..."
+            EXECUTABLE=$(find "$APP_PATH/Contents/MacOS" -maxdepth 1 -type f | head -n 1)
+            chmod +x "$EXECUTABLE" || true
+          fi
+
+          if [ -z "$EXECUTABLE" ]; then
+            echo "❌ No executable found inside app bundle"
+            ls -la "$APP_PATH/Contents/MacOS" || true
+            exit 1
+          fi
+
+          echo "✅ Found executable: $EXECUTABLE"
+          echo "Launching app..."
+
+          "$EXECUTABLE" > app-launch.log 2>&1 &
+          APP_PID=$!
+
+          echo "App PID: $APP_PID"
+          sleep 15
+
+          if kill -0 "$APP_PID" 2>/dev/null; then
+            echo "✅ macOS app launched and stayed running for 15 seconds"
+            kill "$APP_PID" || true
+            exit 0
+          else
+            echo "❌ macOS app crashed or closed immediately"
+            echo "---- app-launch.log ----"
+            cat app-launch.log || true
+            exit 1
+          fi
+
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
