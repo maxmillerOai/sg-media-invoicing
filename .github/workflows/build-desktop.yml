@@ -1,0 +1,66 @@
+name: Build desktop installers
+
+# Builds the native installers in the cloud:
+#   - macOS  → .dmg  (must be built on macOS; jpackage can't cross-compile)
+#   - Windows → .msi
+# Run it from the GitHub "Actions" tab (workflow_dispatch) or on push to main/master,
+# then download the installer from the run's "Artifacts" section.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  macos-dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform 36
+        run: yes | sdkmanager "platforms;android-36" || true
+
+      - name: Build macOS DMG
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :desktopApp:packageDmg --no-daemon --no-configuration-cache --stacktrace
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: SG-Media-Invoicing-macOS
+          path: desktopApp/build/compose/binaries/main/dmg/*.dmg
+          if-no-files-found: error
+
+  windows-msi:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build Windows MSI
+        run: ./gradlew :desktopApp:packageMsi --no-daemon --no-configuration-cache --stacktrace
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: SG-Media-Invoicing-Windows
+          path: desktopApp/build/compose/binaries/main/msi/*.msi
+          if-no-files-found: error

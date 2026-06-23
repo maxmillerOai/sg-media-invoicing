@@ -1,0 +1,15 @@
+-- Migration v1 -> v2: document status + payments.
+ALTER TABLE InvoiceEntity ADD COLUMN status TEXT NOT NULL DEFAULT 'DRAFT';
+ALTER TABLE InvoiceEntity ADD COLUMN dueDate TEXT;
+
+CREATE TABLE PaymentEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoiceId INTEGER NOT NULL,
+    amountMinor INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    method TEXT NOT NULL,
+    note TEXT,
+    createdAt INTEGER NOT NULL
+);
+
+CREATE INDEX payment_invoice_idx ON PaymentEntity(invoiceId);

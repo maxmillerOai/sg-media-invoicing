@@ -1,0 +1,38 @@
+CREATE TABLE ClientEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    displayName TEXT NOT NULL,
+    legalForm TEXT,
+    rc TEXT,
+    nif TEXT,
+    nis TEXT,
+    articleImposition TEXT,
+    address TEXT NOT NULL,
+    city TEXT NOT NULL,
+    wilaya TEXT,
+    phone TEXT,
+    email TEXT,
+    iban TEXT,
+    bankName TEXT,
+    isPersonal INTEGER NOT NULL,
+    notes TEXT
+);
+
+insert:
+INSERT INTO ClientEntity(displayName, legalForm, rc, nif, nis, articleImposition, address, city, wilaya, phone, email, iban, bankName, isPersonal, notes)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE ClientEntity SET displayName = ?, legalForm = ?, rc = ?, nif = ?, nis = ?, articleImposition = ?, address = ?, city = ?, wilaya = ?, phone = ?, email = ?, iban = ?, bankName = ?, isPersonal = ?, notes = ?
+WHERE id = ?;
+
+lastInsertedId:
+SELECT last_insert_rowid();
+
+selectAll:
+SELECT * FROM ClientEntity ORDER BY displayName;
+
+selectById:
+SELECT * FROM ClientEntity WHERE id = ?;
+
+deleteById:
+DELETE FROM ClientEntity WHERE id = ?;

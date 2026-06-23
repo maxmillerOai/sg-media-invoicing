@@ -1,0 +1,25 @@
+CREATE TABLE CatalogItemEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    defaultPriceMinor INTEGER NOT NULL,
+    defaultVatPct REAL NOT NULL,
+    description TEXT
+);
+
+insert:
+INSERT INTO CatalogItemEntity(name, unit, defaultPriceMinor, defaultVatPct, description)
+VALUES (?, ?, ?, ?, ?);
+
+update:
+UPDATE CatalogItemEntity SET name = ?, unit = ?, defaultPriceMinor = ?, defaultVatPct = ?, description = ?
+WHERE id = ?;
+
+lastInsertedId:
+SELECT last_insert_rowid();
+
+selectAll:
+SELECT * FROM CatalogItemEntity ORDER BY name;
+
+deleteById:
+DELETE FROM CatalogItemEntity WHERE id = ?;

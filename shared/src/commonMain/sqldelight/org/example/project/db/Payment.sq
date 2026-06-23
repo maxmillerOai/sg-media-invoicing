@@ -1,0 +1,36 @@
+CREATE TABLE PaymentEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoiceId INTEGER NOT NULL,
+    amountMinor INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    method TEXT NOT NULL,
+    note TEXT,
+    createdAt INTEGER NOT NULL
+);
+
+CREATE INDEX payment_invoice_idx ON PaymentEntity(invoiceId);
+
+insert:
+INSERT INTO PaymentEntity(invoiceId, amountMinor, date, method, note, createdAt)
+VALUES (?, ?, ?, ?, ?, ?);
+
+lastInsertedId:
+SELECT last_insert_rowid();
+
+selectAll:
+SELECT * FROM PaymentEntity ORDER BY date DESC, id DESC;
+
+selectForInvoice:
+SELECT * FROM PaymentEntity WHERE invoiceId = ? ORDER BY date DESC, id DESC;
+
+sumForInvoice:
+SELECT COALESCE(SUM(amountMinor), 0) FROM PaymentEntity WHERE invoiceId = ?;
+
+paidByInvoice:
+SELECT invoiceId, COALESCE(SUM(amountMinor), 0) AS paid FROM PaymentEntity GROUP BY invoiceId;
+
+deleteById:
+DELETE FROM PaymentEntity WHERE id = ?;
+
+deleteForInvoice:
+DELETE FROM PaymentEntity WHERE invoiceId = ?;

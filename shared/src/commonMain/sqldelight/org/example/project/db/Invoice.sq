@@ -1,0 +1,51 @@
+CREATE TABLE InvoiceEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    number TEXT NOT NULL,
+    docType TEXT NOT NULL,
+    clientName TEXT NOT NULL,
+    clientAddress TEXT NOT NULL,
+    clientNif TEXT,
+    clientRc TEXT,
+    clientNis TEXT,
+    clientArticle TEXT,
+    issueDate TEXT NOT NULL,
+    cash INTEGER NOT NULL,
+    vatExempt INTEGER NOT NULL,
+    applyRemise INTEGER NOT NULL,
+    createdAt INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'DRAFT',
+    dueDate TEXT,
+    paymentMethod TEXT NOT NULL DEFAULT 'CASH',
+    chequeNumber TEXT,
+    chequeBank TEXT
+);
+
+insert:
+INSERT INTO InvoiceEntity(number, docType, clientName, clientAddress, clientNif, clientRc, clientNis, clientArticle, issueDate, cash, vatExempt, applyRemise, createdAt, status, dueDate, paymentMethod, chequeNumber, chequeBank)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+lastInsertedId:
+SELECT last_insert_rowid();
+
+selectAll:
+SELECT * FROM InvoiceEntity ORDER BY id DESC;
+
+selectById:
+SELECT * FROM InvoiceEntity WHERE id = ?;
+
+deleteById:
+DELETE FROM InvoiceEntity WHERE id = ?;
+
+updateStatus:
+UPDATE InvoiceEntity SET status = ? WHERE id = ?;
+
+updateFull:
+UPDATE InvoiceEntity
+SET number = ?, docType = ?, clientName = ?, clientAddress = ?, clientNif = ?, clientRc = ?, clientNis = ?, clientArticle = ?, issueDate = ?, cash = ?, vatExempt = ?, applyRemise = ?, dueDate = ?, paymentMethod = ?, chequeNumber = ?, chequeBank = ?
+WHERE id = ?;
+
+updateDueDate:
+UPDATE InvoiceEntity SET dueDate = ? WHERE id = ?;
+
+countForYearPrefix:
+SELECT count(*) FROM InvoiceEntity WHERE number LIKE :prefix;

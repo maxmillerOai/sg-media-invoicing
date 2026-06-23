@@ -1,0 +1,4 @@
+-- Migration v2 -> v3: per-invoice payment method (+ cheque details).
+ALTER TABLE InvoiceEntity ADD COLUMN paymentMethod TEXT NOT NULL DEFAULT 'CASH';
+ALTER TABLE InvoiceEntity ADD COLUMN chequeNumber TEXT;
+ALTER TABLE InvoiceEntity ADD COLUMN chequeBank TEXT;

@@ -1,0 +1,21 @@
+CREATE TABLE LineItemEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoiceId INTEGER NOT NULL,
+    designation TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    qty REAL NOT NULL,
+    unitPriceMinor INTEGER NOT NULL,
+    discountPct REAL NOT NULL,
+    vatPct REAL NOT NULL,
+    position INTEGER NOT NULL
+);
+
+insert:
+INSERT INTO LineItemEntity(invoiceId, designation, unit, qty, unitPriceMinor, discountPct, vatPct, position)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+selectForInvoice:
+SELECT * FROM LineItemEntity WHERE invoiceId = ? ORDER BY position;
+
+deleteForInvoice:
+DELETE FROM LineItemEntity WHERE invoiceId = ?;
