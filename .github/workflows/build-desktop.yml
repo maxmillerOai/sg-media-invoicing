@@ -54,19 +54,15 @@ jobs:
             exit 1
           fi
 
-          EXECUTABLE=$(find "$APP_PATH/Contents/MacOS" -maxdepth 1 -type f -perm +111 | head -n 1)
-
-          if [ -z "$EXECUTABLE" ]; then
-            echo "Trying alternative executable search..."
-            EXECUTABLE=$(find "$APP_PATH/Contents/MacOS" -maxdepth 1 -type f | head -n 1)
-            chmod +x "$EXECUTABLE" || true
-          fi
+          EXECUTABLE=$(find "$APP_PATH/Contents/MacOS" -maxdepth 1 -type f | head -n 1)
 
           if [ -z "$EXECUTABLE" ]; then
             echo "❌ No executable found inside app bundle"
             ls -la "$APP_PATH/Contents/MacOS" || true
             exit 1
           fi
+
+          chmod +x "$EXECUTABLE" || true
 
           echo "✅ Found executable: $EXECUTABLE"
           echo "Launching app..."
@@ -87,6 +83,174 @@ jobs:
             cat app-launch.log || true
             exit 1
           fi
+
+      - name: Verify macOS app architecture, runtime, plist, copyright, icons
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "========================================"
+          echo "macOS verification"
+          echo "========================================"
+
+          APP_PATH=$(find desktopApp/build/compose/binaries/main -name "*.app" -type d | head -n 1)
+          DMG_PATH=$(find desktopApp/build/compose/binaries/main/dmg -name "*.dmg" -type f | head -n 1 || true)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ No .app bundle found"
+            find desktopApp/build/compose/binaries/main -maxdepth 5 -type d || true
+            exit 1
+          fi
+
+          echo "✅ Found app: $APP_PATH"
+
+          EXECUTABLE=$(find "$APP_PATH/Contents/MacOS" -maxdepth 1 -type f | head -n 1)
+          INFO_PLIST="$APP_PATH/Contents/Info.plist"
+
+          echo ""
+          echo "========================================"
+          echo "1. Main executable architecture"
+          echo "========================================"
+
+          if [ -z "$EXECUTABLE" ]; then
+            echo "❌ No executable found"
+            ls -la "$APP_PATH/Contents/MacOS" || true
+            exit 1
+          fi
+
+          echo "Executable: $EXECUTABLE"
+          file "$EXECUTABLE" || true
+
+          MAIN_ARCHS=$(lipo -archs "$EXECUTABLE" 2>/dev/null || true)
+          echo "Detected main executable archs: $MAIN_ARCHS"
+
+          if echo "$MAIN_ARCHS" | grep -q "x86_64" && echo "$MAIN_ARCHS" | grep -q "arm64"; then
+            echo "✅ Main executable is universal: x86_64 + arm64"
+          elif echo "$MAIN_ARCHS" | grep -q "arm64"; then
+            echo "✅ Main executable is Apple Silicon only: arm64"
+          elif echo "$MAIN_ARCHS" | grep -q "x86_64"; then
+            echo "✅ Main executable is Intel only: x86_64"
+          else
+            echo "⚠️ Could not determine main executable architecture"
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "2. Bundled Java runtime architecture"
+          echo "========================================"
+
+          JAVA_BIN=$(find "$APP_PATH/Contents" -path "*/bin/java" -type f | head -n 1 || true)
+
+          if [ -z "$JAVA_BIN" ]; then
+            echo "⚠️ No bundled Java runtime found inside app"
+          else
+            echo "Java binary: $JAVA_BIN"
+            file "$JAVA_BIN" || true
+
+            JAVA_ARCHS=$(lipo -archs "$JAVA_BIN" 2>/dev/null || true)
+            echo "Detected Java runtime archs: $JAVA_ARCHS"
+
+            if echo "$JAVA_ARCHS" | grep -q "x86_64" && echo "$JAVA_ARCHS" | grep -q "arm64"; then
+              echo "✅ Bundled Java runtime is universal: x86_64 + arm64"
+            elif echo "$JAVA_ARCHS" | grep -q "arm64"; then
+              echo "✅ Bundled Java runtime is Apple Silicon only: arm64"
+            elif echo "$JAVA_ARCHS" | grep -q "x86_64"; then
+              echo "✅ Bundled Java runtime is Intel only: x86_64"
+            else
+              echo "⚠️ Could not determine Java runtime architecture"
+            fi
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "3. Minimum macOS version from Info.plist"
+          echo "========================================"
+
+          if [ ! -f "$INFO_PLIST" ]; then
+            echo "❌ Info.plist not found"
+            exit 1
+          fi
+
+          echo "Info.plist: $INFO_PLIST"
+
+          echo "CFBundleName:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleName" "$INFO_PLIST" || true
+
+          echo "CFBundleDisplayName:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$INFO_PLIST" || true
+
+          echo "CFBundleIdentifier:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$INFO_PLIST" || true
+
+          echo "CFBundleShortVersionString:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" || true
+
+          echo "CFBundleVersion:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" || true
+
+          echo "LSMinimumSystemVersion:"
+          MIN_MACOS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST" 2>/dev/null || true)
+
+          if [ -z "$MIN_MACOS" ]; then
+            echo "⚠️ LSMinimumSystemVersion not found"
+          else
+            echo "✅ Minimum macOS version: $MIN_MACOS"
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "4. Copyright check"
+          echo "========================================"
+
+          COPYRIGHT=$(/usr/libexec/PlistBuddy -c "Print :NSHumanReadableCopyright" "$INFO_PLIST" 2>/dev/null || true)
+
+          if [ -z "$COPYRIGHT" ]; then
+            echo "⚠️ NSHumanReadableCopyright not found"
+          else
+            echo "Copyright: $COPYRIGHT"
+          fi
+
+          if echo "$COPYRIGHT" | grep -q "GHN-TECH"; then
+            echo "✅ Copyright includes GHN-TECH"
+          else
+            echo "⚠️ Copyright does not include GHN-TECH"
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "5. Icon resources check"
+          echo "========================================"
+
+          echo "CFBundleIconFile:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$INFO_PLIST" || true
+
+          echo "CFBundleIconName:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$INFO_PLIST" || true
+
+          echo "Icon files in Resources:"
+          find "$APP_PATH/Contents/Resources" -maxdepth 2 \( -name "*.icns" -o -name "*.png" -o -name "*.ico" \) -print || true
+
+          if find "$APP_PATH/Contents/Resources" -maxdepth 2 -name "*.icns" | grep -q .; then
+            echo "✅ .icns icon found in built app"
+          else
+            echo "⚠️ No .icns icon found in built app"
+          fi
+
+          echo ""
+          echo "========================================"
+          echo "6. DMG check"
+          echo "========================================"
+
+          if [ -z "$DMG_PATH" ]; then
+            echo "⚠️ No DMG found"
+          else
+            echo "✅ DMG found: $DMG_PATH"
+            file "$DMG_PATH" || true
+            ls -lh "$DMG_PATH" || true
+          fi
+
+          echo ""
+          echo "✅ macOS verification completed"
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
