@@ -2,7 +2,7 @@ package org.example.project.data
 
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.db.synchronous
+import app.cash.sqldelight.async.coroutines.synchronous
 import org.example.project.db.AppDatabase
 
 /**
@@ -39,3 +39,4 @@ fun openDatabase(driver: SqlDriver): AppDatabase {
     }
     return AppDatabase(driver)
 }
+

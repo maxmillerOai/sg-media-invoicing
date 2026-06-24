@@ -1,5 +1,6 @@
 package org.example.project.data
 
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.project.db.AppDatabase

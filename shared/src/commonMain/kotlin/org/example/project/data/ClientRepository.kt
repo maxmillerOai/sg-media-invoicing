@@ -1,5 +1,8 @@
 package org.example.project.data
 
+import app.cash.sqldelight.async.coroutines.awaitAsList
+import app.cash.sqldelight.async.coroutines.awaitAsOne
+import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.example.project.db.AppDatabase
@@ -62,3 +65,4 @@ private fun org.example.project.db.ClientEntity.toClient() = Client(
     isPersonal = isPersonal != 0L,
     notes = notes,
 )
+

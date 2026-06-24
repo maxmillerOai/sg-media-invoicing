@@ -76,6 +76,7 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.sqldelight.runtime)
             implementation(libs.sqldelight.coroutines)
+	    implementation(libs.sqldelight.async.extensions)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.serialization.json)
