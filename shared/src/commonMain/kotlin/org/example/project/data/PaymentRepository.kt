@@ -26,7 +26,7 @@ class PaymentRepository(private val db: AppDatabase) {
     private val pq get() = db.paymentQueries
 
     suspend fun forInvoice(invoiceId: Long): List<PaymentRecord> = withContext(Dispatchers.Default) {
-        pq.selectForInvoice(invoiceId).executeAsList().map { e ->
+        pq.selectForInvoice(invoiceId).awaitAsList().map { e ->
             PaymentRecord(e.id, e.invoiceId, Money(e.amountMinor), LocalDate.parse(e.date), parseMethod(e.method), e.note)
         }
     }
@@ -41,7 +41,7 @@ class PaymentRepository(private val db: AppDatabase) {
                 note = payment.note,
                 createdAt = payment.date.toEpochDays().toLong() * 86_400_000L,
             )
-            pq.lastInsertedId().executeAsOne()
+            pq.lastInsertedId().awaitAsOne()
         }
     }
 
@@ -50,11 +50,11 @@ class PaymentRepository(private val db: AppDatabase) {
     }
 
     suspend fun sumForInvoice(invoiceId: Long): Money = withContext(Dispatchers.Default) {
-        Money(pq.sumForInvoice(invoiceId).executeAsOne())
+        Money(pq.sumForInvoice(invoiceId).awaitAsOne())
     }
 
     /** Total paid per invoice id, for computing outstanding across many documents at once. */
     suspend fun paidByInvoice(): Map<Long, Money> = withContext(Dispatchers.Default) {
-        pq.paidByInvoice().executeAsList().associate { it.invoiceId to Money(it.paid) }
+        pq.paidByInvoice().awaitAsList().associate { it.invoiceId to Money(it.paid) }
     }
 }

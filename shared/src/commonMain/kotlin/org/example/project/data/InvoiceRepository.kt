@@ -47,7 +47,7 @@ class InvoiceRepository(private val db: AppDatabase) {
     private val lq get() = db.lineItemQueries
 
     suspend fun list(): List<SavedInvoice> = withContext(Dispatchers.Default) {
-        iq.selectAll().executeAsList().map { e ->
+        iq.selectAll().awaitAsList().map { e ->
             SavedInvoice(
                 id = e.id,
                 number = e.number,
@@ -73,7 +73,7 @@ class InvoiceRepository(private val db: AppDatabase) {
     }
 
     suspend fun load(id: Long): SavedInvoice? = withContext(Dispatchers.Default) {
-        val e = iq.selectById(id).executeAsOneOrNull() ?: return@withContext null
+        val e = iq.selectById(id).awaitAsOneOrNull() ?: return@withContext null
         SavedInvoice(
             id = e.id, number = e.number, docType = e.docType,
             clientName = e.clientName, clientAddress = e.clientAddress, clientNif = e.clientNif,
@@ -89,8 +89,8 @@ class InvoiceRepository(private val db: AppDatabase) {
         )
     }
 
-    private fun loadLines(invoiceId: Long): List<LineItem> =
-        lq.selectForInvoice(invoiceId).executeAsList().map { l ->
+    private suspend fun loadLines(invoiceId: Long): List<LineItem> =
+        lq.selectForInvoice(invoiceId).awaitAsList().map { l ->
             LineItem(
                 designation = l.designation,
                 qty = l.qty,
@@ -123,7 +123,7 @@ class InvoiceRepository(private val db: AppDatabase) {
                 chequeNumber = inv.chequeNumber,
                 chequeBank = inv.chequeBank,
             )
-            val id = iq.lastInsertedId().executeAsOne()
+            val id = iq.lastInsertedId().awaitAsOne()
             inv.lines.forEachIndexed { i, l ->
                 lq.insert(
                     invoiceId = id,
@@ -197,7 +197,7 @@ class InvoiceRepository(private val db: AppDatabase) {
     /** Atomic next document number for the year and type, e.g. PRO-2026-0001. */
     suspend fun nextNumber(year: Int, prefix: String = "PRO"): String = withContext(Dispatchers.Default) {
         val base = "$prefix-$year-"
-        val count = iq.countForYearPrefix("$base%").executeAsOne()
+        val count = iq.countForYearPrefix("$base%").awaitAsOne()
         base + (count + 1).toString().padStart(4, '0')
     }
 }

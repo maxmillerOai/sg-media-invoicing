@@ -31,11 +31,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.isoDayNumber
 import org.example.project.data.SettingsRepository
 import org.example.project.data.WeatherInfo
 import org.example.project.data.WeatherService
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+
+private val frWeekdayShort = listOf("lun", "mar", "mer", "jeu", "ven", "sam", "dim")
+
+private fun weekdayShort(iso: String): String = runCatching {
+    frWeekdayShort[(LocalDate.parse(iso).dayOfWeek.isoDayNumber - 1).coerceIn(0, 6)]
+}.getOrDefault("")
 
 /** Live weather (Open-Meteo) for a user-chosen city, shown next to the dashboard clock. */
 @Composable
@@ -109,6 +117,21 @@ fun WeatherPanel(modifier: Modifier = Modifier) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
+                    if (w.forecast.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            w.forecast.forEach { day ->
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(weekdayShort(day.date), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(3.dp))
+                                    Text(day.emoji, fontSize = 18.sp)
+                                    Spacer(Modifier.height(3.dp))
+                                    Text("${day.tempMaxC.roundToInt()}°", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                    Text("${day.tempMinC.roundToInt()}°", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

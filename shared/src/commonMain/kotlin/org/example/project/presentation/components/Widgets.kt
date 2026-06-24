@@ -77,7 +77,7 @@ fun OutlineAction(
             AppIconView(leadingIcon, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Text(text, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, softWrap = false)
     }
 }
 

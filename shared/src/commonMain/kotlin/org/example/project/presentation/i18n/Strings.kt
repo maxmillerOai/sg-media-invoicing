@@ -80,7 +80,7 @@ data class AppStrings(
 )
 
 private val Fr = AppStrings(
-    navDashboard = "Tableau de bord",
+    navDashboard = "Tableau",
     navClients = "Clients",
     navInvoices = "Factures",
     navCatalog = "Catalogue",

@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -74,7 +76,10 @@ private fun LoginScreen(settings: SettingsRepository, onAuthed: () -> Unit) {
     var master by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
-    Box(Modifier.fillMaxSize().background(Gradients.ink), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxSize().background(Gradients.ink).verticalScroll(rememberScrollState()),
+        contentAlignment = Alignment.Center,
+    ) {
         if (!loaded) return@Box
         Card(
             modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth().padding(24.dp),

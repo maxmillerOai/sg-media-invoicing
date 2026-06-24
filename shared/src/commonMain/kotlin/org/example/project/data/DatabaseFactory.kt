@@ -2,6 +2,7 @@ package org.example.project.data
 
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.synchronous
 import org.example.project.db.AppDatabase
 
 /**
@@ -12,7 +13,7 @@ import org.example.project.db.AppDatabase
  * Android/iOS drivers manage create/migrate themselves, so they don't call this.
  */
 fun openDatabase(driver: SqlDriver): AppDatabase {
-    val schema = AppDatabase.Schema
+    val schema = AppDatabase.Schema.synchronous()
     val current = driver.executeQuery(
         identifier = null,
         sql = "PRAGMA user_version;",

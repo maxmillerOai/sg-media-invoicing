@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -11,6 +13,9 @@ sqldelight {
     databases {
         create("AppDatabase") {
             packageName.set("org.example.project.db")
+            // Required for the browser (web-worker) driver, which is asynchronous. Synchronous
+            // platforms (Android/iOS/desktop) wrap the schema with .synchronous().
+            generateAsync.set(true)
         }
     }
 }
@@ -27,7 +32,17 @@ kotlin {
     }
     
     jvm()
-    
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            commonWebpackConfig {
+                outputFileName = "sgmedia.js"
+            }
+        }
+        binaries.executable()
+    }
+
     androidLibrary {
        namespace = "org.example.project.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -76,6 +91,9 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.sqldelight.native.driver)
             implementation(libs.ktor.client.darwin)
+        }
+        wasmJsMain.dependencies {
+            implementation(libs.sqldelight.web.worker.driver)
         }
     }
 }

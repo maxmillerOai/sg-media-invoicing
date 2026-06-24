@@ -34,6 +34,12 @@ chmod +x ./gradlew
 Output: `desktopApp/build/compose/binaries/main/dmg/*.dmg`.
 (`:desktopApp:createDistributable` makes a runnable `.app` without the DMG wrapper.)
 
+## App icon (already wired)
+`desktopApp/icons/sg_icon.{ico,icns,png}` = the SG emblem (white) on the brand violet→cyan gradient.
+`desktopApp/build.gradle.kts` sets `macOS.iconFile = icons/sg_icon.icns`, so the `.dmg`/app picks it up
+automatically. The `.icns` was generated with Pillow on Windows — if the mac build ever rejects it,
+regenerate on the runner from the PNG: `sips -s format icns icons/sg_icon.png --out icons/sg_icon.icns`.
+
 ## Important macOS notes
 - **DO NOT** use the Windows-only hack `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=…` — that was a
   sandbox workaround on the Windows dev box. On a real Mac/CI, build normally.

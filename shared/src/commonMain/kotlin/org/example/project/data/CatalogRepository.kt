@@ -12,7 +12,7 @@ class CatalogRepository(private val db: AppDatabase) {
     private val q get() = db.catalogQueries
 
     suspend fun list(): List<CatalogItem> = withContext(Dispatchers.Default) {
-        q.selectAll().executeAsList().map {
+        q.selectAll().awaitAsList().map {
             CatalogItem(
                 id = it.id,
                 name = it.name,
@@ -28,7 +28,7 @@ class CatalogRepository(private val db: AppDatabase) {
         if (item.id == 0L) {
             db.transactionWithResult {
                 q.insert(item.name, item.unit, item.defaultPriceHT.amountMinor, item.defaultVatPct, item.description)
-                q.lastInsertedId().executeAsOne()
+                q.lastInsertedId().awaitAsOne()
             }
         } else {
             q.update(item.name, item.unit, item.defaultPriceHT.amountMinor, item.defaultVatPct, item.description, item.id)

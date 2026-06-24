@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import org.example.project.export.AndroidInvoiceExporter
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -13,7 +14,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App(platformModules = listOf(androidDataModule(applicationContext)))
+            App(
+                exporter = AndroidInvoiceExporter(this),
+                platformModules = listOf(androidDataModule(applicationContext)),
+            )
         }
     }
 }

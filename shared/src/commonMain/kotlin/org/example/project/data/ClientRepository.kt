@@ -11,11 +11,11 @@ class ClientRepository(private val db: AppDatabase) {
     private val q get() = db.clientQueries
 
     suspend fun list(): List<Client> = withContext(Dispatchers.Default) {
-        q.selectAll().executeAsList().map { it.toClient() }
+        q.selectAll().awaitAsList().map { it.toClient() }
     }
 
     suspend fun load(id: Long): Client? = withContext(Dispatchers.Default) {
-        q.selectById(id).executeAsOneOrNull()?.toClient()
+        q.selectById(id).awaitAsOneOrNull()?.toClient()
     }
 
     /** Inserts when [Client.id] is 0, otherwise updates. Returns the row id. */
@@ -28,7 +28,7 @@ class ClientRepository(private val db: AppDatabase) {
                     phone = c.phone, email = c.email, iban = c.iban, bankName = c.bankName,
                     isPersonal = if (c.isPersonal) 1L else 0L, notes = c.notes,
                 )
-                q.lastInsertedId().executeAsOne()
+                q.lastInsertedId().awaitAsOne()
             }
         } else {
             q.update(

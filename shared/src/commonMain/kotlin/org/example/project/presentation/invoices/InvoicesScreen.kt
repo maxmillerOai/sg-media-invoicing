@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -187,20 +189,29 @@ private fun InvoiceListView(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(inv.clientName, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("${inv.number}  •  ${inv.issueDate.frShort()}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Two-row layout: client + amount on top, chips + actions below. Avoids the
+                    // single-row squeeze that wrapped the client name one letter per line on phones.
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(inv.clientName.ifBlank { "—" }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                                Text("${inv.number}  •  ${inv.issueDate.frShort()}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(ttc.format(), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
                         }
-                        Text(ttc.format(), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(Modifier.width(12.dp))
-                        StatusChip(inv.docType.substringBefore(" ").ifBlank { "DOC" }, AgencyPalette.Violet)
-                        Spacer(Modifier.width(8.dp))
-                        StatusPill(status)
-                        Spacer(Modifier.width(12.dp))
-                        OutlineAction("Ouvrir", onClick = { onOpen(inv) })
-                        Spacer(Modifier.width(8.dp))
-                        OutlineAction("Suppr.", onClick = { scope.launch { repo.delete(inv.id); reload() } })
+                        Spacer(Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Stack the type chip + status pill so the action buttons keep room on one line.
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                StatusChip(inv.docType.substringBefore(" ").ifBlank { "DOC" }, AgencyPalette.Violet)
+                                StatusPill(status)
+                            }
+                            Spacer(Modifier.weight(1f))
+                            OutlineAction("Ouvrir", onClick = { onOpen(inv) })
+                            Spacer(Modifier.width(8.dp))
+                            OutlineAction("Suppr.", onClick = { scope.launch { repo.delete(inv.id); reload() } })
+                        }
                     }
                 }
             }
@@ -241,7 +252,7 @@ private fun LineItem.toDraft() = LineDraft(
     discount = numStr(discountPct),
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun InvoiceEditorView(
     modifier: Modifier,
@@ -301,7 +312,8 @@ private fun InvoiceEditorView(
     ScrollableColumn(modifier = modifier, contentPadding = PaddingValues(28.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(if (editing) "Modifier le document" else "Nouveau document", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
-            Text(number, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(12.dp))
+            Text(number, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
         Spacer(Modifier.height(16.dp))
 
@@ -309,54 +321,61 @@ private fun InvoiceEditorView(
             Column(Modifier.padding(16.dp)) {
                 SectionHeader("Document")
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Type :", color = MaterialTheme.colorScheme.onSurface)
-                    Spacer(Modifier.width(8.dp))
-                    var typeMenu by remember { mutableStateOf(false) }
-                    Box {
-                        OutlineAction(docType.title, onClick = { typeMenu = true })
-                        DropdownMenu(expanded = typeMenu, onDismissRequest = { typeMenu = false }) {
-                            docTypes.forEach { t ->
-                                DropdownMenuItem(text = { Text(t.title) }, onClick = { docType = t; typeMenu = false })
+                var typeMenu by remember { mutableStateOf(false) }
+                var dateDialog by remember { mutableStateOf(false) }
+                var dueDialog by remember { mutableStateOf(false) }
+                // FlowRow lets Type / Date / Échéance wrap onto a second line on narrow phones
+                // instead of pushing the Échéance button off the right edge.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Type :", color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(Modifier.width(8.dp))
+                        Box {
+                            OutlineAction(docType.title, onClick = { typeMenu = true })
+                            DropdownMenu(expanded = typeMenu, onDismissRequest = { typeMenu = false }) {
+                                docTypes.forEach { t ->
+                                    DropdownMenuItem(text = { Text(t.title) }, onClick = { docType = t; typeMenu = false })
+                                }
                             }
                         }
                     }
-                    Spacer(Modifier.weight(1f))
-                    var dateDialog by remember { mutableStateOf(false) }
                     OutlineAction("Date : ${issueDate.frShort()}", onClick = { dateDialog = true })
-                    if (dateDialog) {
-                        val state = rememberDatePickerState(initialSelectedDateMillis = issueDate.toEpochDays().toLong() * 86_400_000L)
-                        DatePickerDialog(
-                            onDismissRequest = { dateDialog = false },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    state.selectedDateMillis?.let { issueDate = LocalDate.fromEpochDays((it / 86_400_000L).toInt()) }
-                                    dateDialog = false
-                                }) { Text("OK") }
-                            },
-                            dismissButton = { TextButton(onClick = { dateDialog = false }) { Text("Annuler") } },
-                        ) { DatePicker(state = state) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlineAction(dueDate?.let { "Échéance : ${it.frShort()}" } ?: "Échéance", onClick = { dueDialog = true })
+                        if (dueDate != null) {
+                            Spacer(Modifier.width(4.dp))
+                            OutlineAction("✕", onClick = { dueDate = null })
+                        }
                     }
-                    Spacer(Modifier.width(8.dp))
-                    var dueDialog by remember { mutableStateOf(false) }
-                    OutlineAction(dueDate?.let { "Échéance : ${it.frShort()}" } ?: "Échéance", onClick = { dueDialog = true })
-                    if (dueDate != null) {
-                        Spacer(Modifier.width(4.dp))
-                        OutlineAction("✕", onClick = { dueDate = null })
-                    }
-                    if (dueDialog) {
-                        val state = rememberDatePickerState(initialSelectedDateMillis = (dueDate ?: issueDate).toEpochDays().toLong() * 86_400_000L)
-                        DatePickerDialog(
-                            onDismissRequest = { dueDialog = false },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    state.selectedDateMillis?.let { dueDate = LocalDate.fromEpochDays((it / 86_400_000L).toInt()) }
-                                    dueDialog = false
-                                }) { Text("OK") }
-                            },
-                            dismissButton = { TextButton(onClick = { dueDialog = false }) { Text("Annuler") } },
-                        ) { DatePicker(state = state) }
-                    }
+                }
+                if (dateDialog) {
+                    val state = rememberDatePickerState(initialSelectedDateMillis = issueDate.toEpochDays().toLong() * 86_400_000L)
+                    DatePickerDialog(
+                        onDismissRequest = { dateDialog = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                state.selectedDateMillis?.let { issueDate = LocalDate.fromEpochDays((it / 86_400_000L).toInt()) }
+                                dateDialog = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = { TextButton(onClick = { dateDialog = false }) { Text("Annuler") } },
+                    ) { DatePicker(state = state) }
+                }
+                if (dueDialog) {
+                    val state = rememberDatePickerState(initialSelectedDateMillis = (dueDate ?: issueDate).toEpochDays().toLong() * 86_400_000L)
+                    DatePickerDialog(
+                        onDismissRequest = { dueDialog = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                state.selectedDateMillis?.let { dueDate = LocalDate.fromEpochDays((it / 86_400_000L).toInt()) }
+                                dueDialog = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = { TextButton(onClick = { dueDialog = false }) { Text("Annuler") } },
+                    ) { DatePicker(state = state) }
                 }
             }
         }
@@ -566,7 +585,7 @@ private fun LineEditor(draft: LineDraft, onChange: (LineDraft) -> Unit, onRemove
 
 // ── Detail / preview + export ────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun InvoiceDetailView(
     modifier: Modifier,
@@ -635,22 +654,22 @@ private fun InvoiceDetailView(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(invoice.number, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
-                status?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        // Number on its own line; actions wrap below so they never push off-screen or squeeze
+        // the number into a one-letter-per-line column on phones.
+        Column(Modifier.fillMaxWidth().padding(20.dp)) {
+            Text(invoice.number, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
+            status?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Spacer(Modifier.height(12.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlineAction("Modifier", leadingIcon = AppIcon.ADD, onClick = onEdit)
+                GradientButton("Imprimer", Gradients.brand, leadingIcon = AppIcon.INVOICES, onClick = { runExport { exporter.print(it) } })
+                OutlineAction("PDF", onClick = { runExport { exporter.export(ExportFormat.PDF, it) } })
+                OutlineAction("E-mail", onClick = { runExport { exporter.email(it) } })
+                OutlineAction("Retour", onClick = onBack)
             }
-            OutlineAction("Modifier", leadingIcon = AppIcon.ADD, onClick = onEdit)
-            Spacer(Modifier.width(8.dp))
-            GradientButton("Imprimer", Gradients.brand, leadingIcon = AppIcon.INVOICES, onClick = { runExport { exporter.print(it) } })
-            Spacer(Modifier.width(8.dp))
-            OutlineAction("PDF", onClick = { runExport { exporter.export(ExportFormat.PDF, it) } })
-            Spacer(Modifier.width(8.dp))
-            OutlineAction("XLSX", onClick = { runExport { exporter.export(ExportFormat.XLSX, it) } })
-            Spacer(Modifier.width(8.dp))
-            OutlineAction("DOCX", onClick = { runExport { exporter.export(ExportFormat.DOCX, it) } })
-            Spacer(Modifier.width(8.dp))
-            OutlineAction("Retour", onClick = onBack)
         }
 
         // ── Status & payments ──────────────────────────────────────────────
@@ -669,7 +688,12 @@ private fun InvoiceDetailView(
                     SectionHeader(s.payments)
                     Spacer(Modifier.width(12.dp))
                     StatusPill(effStatus)
-                    Spacer(Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(10.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Box {
                         OutlineAction(s.statusLabel, onClick = { statusMenu = true })
                         DropdownMenu(expanded = statusMenu, onDismissRequest = { statusMenu = false }) {
@@ -684,7 +708,6 @@ private fun InvoiceDetailView(
                             }
                         }
                     }
-                    Spacer(Modifier.width(8.dp))
                     OutlineAction(inv.dueDate?.let { "${s.dueDateLabel} : ${it.frShort()}" } ?: s.dueDateLabel, onClick = { dueDialog = true })
                 }
                 Spacer(Modifier.height(10.dp))
@@ -698,11 +721,14 @@ private fun InvoiceDetailView(
                     Text(s.noPayments, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     payments.forEach { p ->
-                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(p.date.frShort(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(110.dp))
-                            Text(paymentModeLabel(p.method), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                            Text(p.amount.format(), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            Spacer(Modifier.width(12.dp))
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(paymentModeLabel(p.method), fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                                Text(p.date.frShort(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text(p.amount.format(), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            Spacer(Modifier.width(10.dp))
                             OutlineAction(s.remove, onClick = { scope.launch { paymentRepo.delete(p.id); payments = paymentRepo.forInvoice(inv.id) } })
                         }
                     }

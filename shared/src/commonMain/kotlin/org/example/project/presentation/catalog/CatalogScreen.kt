@@ -1,6 +1,8 @@
 package org.example.project.presentation.catalog
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,8 +30,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.example.project.core.Money
 import org.example.project.data.CatalogRepository
@@ -37,6 +42,7 @@ import org.example.project.presentation.components.AppIcon
 import org.example.project.presentation.components.GradientButton
 import org.example.project.presentation.components.OutlineAction
 import org.example.project.presentation.components.ScrollableColumn
+import org.example.project.presentation.theme.AgencyPalette
 import org.example.project.presentation.theme.Gradients
 import org.koin.compose.koinInject
 
@@ -70,19 +76,37 @@ private fun CatalogList(repo: CatalogRepository, onNew: () -> Unit, onEdit: (Cat
         if (loaded && items.isEmpty()) {
             Text("Aucun article. Ajoutez vos services/produits réutilisables.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        val palette = listOf(AgencyPalette.Violet, AgencyPalette.Cyan, AgencyPalette.Amber, AgencyPalette.Mint, AgencyPalette.Coral)
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            items.forEach { it0 ->
+            items.forEachIndexed { idx, it0 ->
+                val color = palette[idx % palette.size]
                 Card(Modifier.fillMaxWidth().padding(bottom = 12.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(it0.name, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                            Text("${it0.unit}  •  TVA ${it0.defaultVatPct}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Two rows: coloured tag + name + price on top, actions below (keeps the name from being squeezed).
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(40.dp).background(color, RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(it0.name.trim().take(1).uppercase().ifBlank { "•" }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(it0.name, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                                it0.description?.takeIf { d -> d.isNotBlank() }?.let { d ->
+                                    Text(d, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                }
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text(it0.defaultPriceHT.format(), fontWeight = FontWeight.SemiBold, color = color, maxLines = 1)
                         }
-                        Text(it0.defaultPriceHT.format(), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(Modifier.width(12.dp))
-                        OutlineAction("Modifier", onClick = { onEdit(it0) })
-                        Spacer(Modifier.width(8.dp))
-                        OutlineAction("Suppr.", onClick = { scope.launch { repo.delete(it0.id); reload() } })
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(Modifier.weight(1f))
+                            OutlineAction("Modifier", onClick = { onEdit(it0) })
+                            Spacer(Modifier.width(8.dp))
+                            OutlineAction("Suppr.", onClick = { scope.launch { repo.delete(it0.id); reload() } })
+                        }
                     }
                 }
             }

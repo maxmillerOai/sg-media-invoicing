@@ -17,9 +17,20 @@ data class WeatherInfo(
     val windKmh: Double,
     val code: Int,
     val isDay: Boolean,
+    val forecast: List<DailyForecast> = emptyList(),
 ) {
     val label: String get() = weatherLabel(code)
     val emoji: String get() = weatherEmoji(code, isDay)
+}
+
+/** One upcoming day in the short forecast strip. [date] is ISO yyyy-MM-dd. */
+data class DailyForecast(
+    val date: String,
+    val code: Int,
+    val tempMaxC: Double,
+    val tempMinC: Double,
+) {
+    val emoji: String get() = weatherEmoji(code, true)
 }
 
 @Serializable
@@ -34,7 +45,7 @@ private data class GeoResult(
 )
 
 @Serializable
-private data class ForecastResponse(val current: CurrentWeather? = null)
+private data class ForecastResponse(val current: CurrentWeather? = null, val daily: DailyBlock? = null)
 
 @Serializable
 private data class CurrentWeather(
@@ -42,6 +53,14 @@ private data class CurrentWeather(
     @SerialName("wind_speed_10m") val wind: Double = 0.0,
     @SerialName("weather_code") val weatherCode: Int = 0,
     @SerialName("is_day") val isDay: Int = 1,
+)
+
+@Serializable
+private data class DailyBlock(
+    val time: List<String> = emptyList(),
+    @SerialName("weather_code") val weatherCode: List<Int> = emptyList(),
+    @SerialName("temperature_2m_max") val tMax: List<Double> = emptyList(),
+    @SerialName("temperature_2m_min") val tMin: List<Double> = emptyList(),
 )
 
 /**
@@ -63,8 +82,21 @@ class WeatherService(private val client: HttpClient = createHttpClient()) {
                 parameter("latitude", g.latitude)
                 parameter("longitude", g.longitude)
                 parameter("current", "temperature_2m,weather_code,wind_speed_10m,is_day")
+                parameter("daily", "weather_code,temperature_2m_max,temperature_2m_min")
+                parameter("forecast_days", 4)
+                parameter("timezone", "auto")
             }.body()
             val cur = forecast.current ?: error("Météo indisponible")
+            val days = forecast.daily?.let { d ->
+                d.time.indices.map { i ->
+                    DailyForecast(
+                        date = d.time.getOrElse(i) { "" },
+                        code = d.weatherCode.getOrElse(i) { 0 },
+                        tempMaxC = d.tMax.getOrElse(i) { 0.0 },
+                        tempMinC = d.tMin.getOrElse(i) { 0.0 },
+                    )
+                }
+            } ?: emptyList()
             WeatherInfo(
                 city = g.name,
                 country = g.country,
@@ -72,6 +104,7 @@ class WeatherService(private val client: HttpClient = createHttpClient()) {
                 windKmh = cur.wind,
                 code = cur.weatherCode,
                 isDay = cur.isDay == 1,
+                forecast = days.drop(1).take(3), // next 3 days
             )
         }
     }

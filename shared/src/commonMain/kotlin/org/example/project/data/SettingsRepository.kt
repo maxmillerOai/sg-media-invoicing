@@ -10,7 +10,7 @@ class SettingsRepository(private val db: AppDatabase) {
     private val q get() = db.settingsQueries
 
     suspend fun get(key: String): String? = withContext(Dispatchers.Default) {
-        q.get(key).executeAsOneOrNull()
+        q.get(key).awaitAsOneOrNull()
     }
 
     suspend fun set(key: String, value: String): Unit = withContext(Dispatchers.Default) {

@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -183,6 +184,13 @@ fun DashboardScreen(
     val monthRevenue = trend.lastOrNull()?.value ?: Money.ZERO
     val docsThisMonth = invoices.count { it.issueDate.year == today.year && it.issueDate.monthNumber == today.monthNumber }
 
+    // What the bell badge actually represents, as readable lines shown when it's tapped.
+    val notifications = buildList {
+        if (overdueInvoices.isNotEmpty()) add("⚠️ ${overdueInvoices.size} facture(s) en retard — ${overdueTotal.format()}")
+        if (deadlines.isNotEmpty()) add("⏰ ${deadlines.size} échéance(s) à venir")
+        if (docsThisMonth > 0) add("📄 $docsThisMonth document(s) créé(s) ce mois-ci")
+    }
+
     ScrollableColumn(modifier = modifier, contentPadding = PaddingValues(28.dp)) {
         Box(Modifier.widthIn(max = 1100.dp).fillMaxWidth()) {
             Column {
@@ -194,7 +202,7 @@ fun DashboardScreen(
                     onToggleTheme = onToggleTheme,
                     language = language,
                     onSelectLanguage = onSelectLanguage,
-                    notifications = docsThisMonth,
+                    notifications = notifications,
                     onNewInvoice = onNewInvoice,
                 )
                 Spacer(Modifier.height(20.dp))
@@ -207,8 +215,8 @@ fun DashboardScreen(
                         }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            ClockHero(s, now)
-                            WeatherPanel(Modifier.fillMaxWidth().height(120.dp))
+                            ClockHero(s, now, compact = true)
+                            WeatherPanel(Modifier.fillMaxWidth())
                         }
                     }
                 }
@@ -281,29 +289,55 @@ private fun TopBar(
     onToggleTheme: () -> Unit,
     language: Language,
     onSelectLanguage: (Language) -> Unit,
-    notifications: Int,
+    notifications: List<String>,
     onNewInvoice: () -> Unit,
 ) {
     BoxWithConstraints {
         val showSearch = maxWidth >= 820.dp
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(s.greetingTitle, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-                Text(s.greetingSubtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // On narrow (phone) widths the greeting + every action button can't share one row,
+        // so the title gets squeezed to a sliver and wraps one letter per line. Stack instead.
+        val compact = maxWidth < 600.dp
+        if (compact) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    s.greetingTitle,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                )
+                Text(s.greetingSubtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircleButton(if (darkTheme) AppIcon.SUN else AppIcon.MOON, onClick = onToggleTheme)
+                    Spacer(Modifier.width(10.dp))
+                    NotificationButton(notifications)
+                    Spacer(Modifier.width(10.dp))
+                    LangSelector(language, onSelectLanguage)
+                    Spacer(Modifier.weight(1f))
+                    GradientButton(s.newShort, Gradients.brand, leadingIcon = AppIcon.ADD, onClick = onNewInvoice)
+                }
             }
-            if (showSearch) {
-                SearchField(s.searchPlaceholder, query, onQuery, Modifier.width(240.dp))
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(s.greetingTitle, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+                    Text(s.greetingSubtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (showSearch) {
+                    SearchField(s.searchPlaceholder, query, onQuery, Modifier.width(240.dp))
+                    Spacer(Modifier.width(12.dp))
+                }
+                CircleButton(if (darkTheme) AppIcon.SUN else AppIcon.MOON, onClick = onToggleTheme)
+                Spacer(Modifier.width(10.dp))
+                NotificationButton(notifications)
+                Spacer(Modifier.width(10.dp))
+                LangSelector(language, onSelectLanguage)
                 Spacer(Modifier.width(12.dp))
+                GradientButton(s.newShort, Gradients.brand, leadingIcon = AppIcon.ADD, onClick = onNewInvoice)
+                Spacer(Modifier.width(12.dp))
+                Avatar("SG")
             }
-            CircleButton(if (darkTheme) AppIcon.SUN else AppIcon.MOON, onClick = onToggleTheme)
-            Spacer(Modifier.width(10.dp))
-            NotificationButton(notifications)
-            Spacer(Modifier.width(10.dp))
-            LangSelector(language, onSelectLanguage)
-            Spacer(Modifier.width(12.dp))
-            GradientButton(s.newShort, Gradients.brand, leadingIcon = AppIcon.ADD, onClick = onNewInvoice)
-            Spacer(Modifier.width(12.dp))
-            Avatar("SG")
         }
     }
 }
@@ -351,10 +385,11 @@ private fun CircleButton(icon: AppIcon, onClick: () -> Unit) {
 }
 
 @Composable
-private fun NotificationButton(count: Int) {
+private fun NotificationButton(items: List<String>) {
+    var open by remember { mutableStateOf(false) }
     Box {
-        CircleButton(AppIcon.BELL, onClick = {})
-        if (count > 0) {
+        CircleButton(AppIcon.BELL, onClick = { open = true })
+        if (items.isNotEmpty()) {
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
@@ -363,7 +398,16 @@ private fun NotificationButton(count: Int) {
                     .background(AgencyPalette.Coral, RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(if (count > 9) "9+" else count.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(if (items.size > 9) "9+" else items.size.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (items.isEmpty()) {
+                DropdownMenuItem(text = { Text("Aucune notification pour le moment") }, onClick = { open = false })
+            } else {
+                items.forEach { item ->
+                    DropdownMenuItem(text = { Text(item) }, onClick = { open = false })
+                }
             }
         }
     }
@@ -406,32 +450,55 @@ private fun Avatar(initials: String) {
 }
 
 @Composable
-private fun ClockHero(s: AppStrings, now: LocalDateTime, modifier: Modifier = Modifier) {
+private fun ClockHero(s: AppStrings, now: LocalDateTime, modifier: Modifier = Modifier, compact: Boolean = false) {
     val hh = now.hour.toString().padStart(2, '0')
     val mm = now.minute.toString().padStart(2, '0')
     val ss = now.second.toString().padStart(2, '0')
     val weekday = s.weekdays[(now.dayOfWeek.isoDayNumber - 1).coerceIn(0, 6)]
     val month = s.months[(now.monthNumber - 1).coerceIn(0, 11)]
+    val dateLine = "${now.dayOfMonth} $month ${now.year}"
 
-    Row(
-        modifier = modifier.fillMaxWidth()
-            .background(Gradients.ink, RoundedCornerShape(20.dp))
-            .padding(horizontal = 28.dp, vertical = 22.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // analog clock
-        AnalogClock(now, Modifier.size(64.dp), accent = AgencyPalette.Cyan)
-        Spacer(Modifier.width(18.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text("$hh:$mm", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 46.sp, letterSpacing = (-1).sp)
-            Spacer(Modifier.width(6.dp))
-            Text(":$ss", color = AgencyPalette.Cyan, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, modifier = Modifier.padding(bottom = 8.dp))
+    if (compact) {
+        // Phone: clock + time on top, date on its own full-width line below (no cramped wrapping).
+        Column(
+            modifier = modifier.fillMaxWidth()
+                .background(Gradients.ink, RoundedCornerShape(20.dp))
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AnalogClock(now, Modifier.size(56.dp), accent = AgencyPalette.Cyan)
+                Spacer(Modifier.width(16.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("$hh:$mm", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 44.sp, letterSpacing = (-1).sp)
+                    Spacer(Modifier.width(6.dp))
+                    Text(":$ss", color = AgencyPalette.Cyan, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, modifier = Modifier.padding(bottom = 6.dp))
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(weekday, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1)
+            Text(dateLine, color = Color.White.copy(alpha = 0.78f), fontSize = 13.sp, maxLines = 1)
         }
-        Spacer(Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(weekday, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-            Spacer(Modifier.height(2.dp))
-            Text("${now.dayOfMonth} $month ${now.year}", color = Color.White.copy(alpha = 0.78f), fontSize = 13.sp)
+    } else {
+        Row(
+            modifier = modifier.fillMaxWidth()
+                .background(Gradients.ink, RoundedCornerShape(20.dp))
+                .padding(horizontal = 28.dp, vertical = 22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // analog clock
+            AnalogClock(now, Modifier.size(64.dp), accent = AgencyPalette.Cyan)
+            Spacer(Modifier.width(18.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("$hh:$mm", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 46.sp, letterSpacing = (-1).sp)
+                Spacer(Modifier.width(6.dp))
+                Text(":$ss", color = AgencyPalette.Cyan, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            Spacer(Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(weekday, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1)
+                Spacer(Modifier.height(2.dp))
+                Text(dateLine, color = Color.White.copy(alpha = 0.78f), fontSize = 13.sp, maxLines = 1)
+            }
         }
     }
 }

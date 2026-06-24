@@ -49,9 +49,12 @@ sealed interface ExportResult {
 interface InvoiceExporter {
     suspend fun export(format: ExportFormat, data: InvoiceExportData): ExportResult
     suspend fun print(data: InvoiceExportData): ExportResult
+
+    /** Generates a PDF and hands it to the platform's email/share flow. Default = unsupported. */
+    suspend fun email(data: InvoiceExportData): ExportResult = ExportResult.Unsupported
 }
 
-/** Fallback used on platforms without an export implementation yet (Android/iOS). */
+/** Fallback used on platforms without an export implementation yet (iOS). */
 object NoopInvoiceExporter : InvoiceExporter {
     override suspend fun export(format: ExportFormat, data: InvoiceExportData) = ExportResult.Unsupported
     override suspend fun print(data: InvoiceExportData) = ExportResult.Unsupported
